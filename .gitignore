@@ -1,0 +1,18 @@
+
+.ssh/
+.docker/
+*.pem
+*.key
+*.crt
+*.env
+
+# Logs
+*.log
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
