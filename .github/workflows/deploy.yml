@@ -1,0 +1,42 @@
+name: Deploy to Minikube
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  deploy-to-k8s:
+    # استخدم الـ self-hosted runner اللي شغّلته
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # (اختياري) ثبت kubectl لو مش موجود
+      - name: Install kubectl if missing
+        run: |
+          if ! command -v kubectl >/dev/null 2>&1; then
+            curl -LO "https://storage.googleapis.com/minikube-builds/releases/latest/kubectl-linux-amd64"
+            sudo install -m 0755 kubectl-linux-amd64 /usr/local/bin/kubectl
+            rm -f kubectl-linux-amd64
+          fi
+          kubectl version --client
+
+      # اكتب kubeconfig من السرّ KUBE_CONFIG_DATA
+      - name: Write kubeconfig from secret
+        run: |
+          mkdir -p ~/.kube
+          cat > ~/.kube/config <<'EOF'
+${{ secrets.KUBE_CONFIG_DATA }}
+EOF
+          chmod 600 ~/.kube/config
+
+      # طبّق ملفات K8s وتابع الـ rollout
+      - name: Apply manifests
+        run: |
+          set -e
+          kubectl apply -f k8s-deployment.yaml
+          kubectl apply -f k8s-service.yaml
+          kubectl rollout status deployment/hello-nginx --timeout=120s
+          kubectl get pods -o wide
