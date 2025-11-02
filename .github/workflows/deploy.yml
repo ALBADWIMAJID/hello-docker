@@ -7,13 +7,11 @@ on:
 
 jobs:
   deploy-to-k8s:
-    # استخدم الـ self-hosted runner اللي شغّلته
     runs-on: self-hosted
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # (اختياري) ثبت kubectl لو مش موجود
       - name: Install kubectl if missing
         run: |
           if ! command -v kubectl >/dev/null 2>&1; then
@@ -23,7 +21,6 @@ jobs:
           fi
           kubectl version --client
 
-      # اكتب kubeconfig من السرّ KUBE_CONFIG_DATA
       - name: Write kubeconfig from secret
         run: |
           mkdir -p ~/.kube
@@ -32,11 +29,10 @@ ${{ secrets.KUBE_CONFIG_DATA }}
 EOF
           chmod 600 ~/.kube/config
 
-      # طبّق ملفات K8s وتابع الـ rollout
-      - name: Apply manifests
+      - name: Apply manifests and rollout
         run: |
           set -e
           kubectl apply -f k8s-deployment.yaml
           kubectl apply -f k8s-service.yaml
-          kubectl rollout status deployment/hello-nginx --timeout=120s
+          kubectl rollout status deployment/hello-nginx --timeout=180s
           kubectl get pods -o wide
