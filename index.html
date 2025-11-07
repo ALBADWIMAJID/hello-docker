@@ -1,12 +1,337 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-  <meta charset="utf-8">
-  <title>Hello Docker v3</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>body{font-family:sans-serif;display:grid;place-items:center;height:100vh;margin:0}h1{margin:0}</style>
+  <!-- 🇷🇺 Метаданные и SEO -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Majid • Docker → CI/CD → Kubernetes (v3)</title>
+  <meta name="description"
+    content="Demo: Docker image served by NGINX, built via GitHub Actions and deployed to Kubernetes (Minikube) with rolling updates." />
+  <meta name="color-scheme" content="light dark" />
+  <meta property="og:title" content="Majid • Docker → CI/CD → Kubernetes (v3)" />
+  <meta property="og:description"
+    content="Docker + GitHub Actions + Kubernetes (Minikube). Rolling update and rollback demo." />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#0ea5e9" />
+
+  <!-- 🇷🇺 Базовые стили: аккуратная типографика и адаптивный дизайн -->
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #0f172a;
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --line: #1f2937;
+      --brand: #0ea5e9;
+      --brand-2: #a78bfa;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --shadow: 0 10px 30px rgba(2, 6, 23, .35);
+      --radius: 18px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f8fafc;
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #475569;
+        --line: #e5e7eb;
+        --shadow: 0 8px 22px rgba(2, 6, 23, .08);
+      }
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 800px at 10% 0%, rgba(14, 165, 233, .12), transparent 55%),
+        radial-gradient(1000px 700px at 100% 100%, rgba(167, 139, 250, .10), transparent 60%),
+        var(--bg);
+      display: grid;
+      place-items: center;
+      padding: 28px;
+    }
+
+    .wrap {
+      width: min(920px, 96vw);
+      display: grid;
+      gap: 18px
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .02)), var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px clamp(22px, 3vw, 34px);
+      backdrop-filter: saturate(120%) blur(6px);
+      animation: fade .5s ease-out both;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background:
+        conic-gradient(from 200deg, var(--brand), var(--brand-2));
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .12)
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 3.4vw, 30px);
+      letter-spacing: .2px
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px
+    }
+
+    @media (min-width:720px) {
+      .grid {
+        grid-template-columns: 1.2fr .8fr
+      }
+    }
+
+    /* 🇷🇺 Бейджи статуса */
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(148, 163, 184, .08);
+      font-size: 14px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%
+    }
+
+    .ok {
+      background: var(--ok)
+    }
+
+    .info {
+      background: var(--brand)
+    }
+
+    .warn {
+      background: var(--warn)
+    }
+
+    /* 🇷🇺 Кнопки-ссылки */
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--text);
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(255, 255, 255, .03));
+      transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(2, 6, 23, .24);
+      border-color: rgba(14, 165, 233, .6)
+    }
+
+    .btn .ic {
+      font-size: 18px
+    }
+
+    .btn.ghost {
+      background: transparent
+    }
+
+    .btn.min {
+      padding: 8px 10px;
+      font-size: 14px
+    }
+
+    /* 🇷🇺 Инфоблоки */
+    .panel {
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      padding: 14px 16px;
+      font-size: 15px;
+      display: grid;
+      gap: 6px;
+    }
+
+    code,
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .95em
+    }
+
+    pre {
+      margin: 0;
+      overflow: auto;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(2, 6, 23, .35);
+      border: 1px solid var(--line)
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+        transition: none !important
+      }
+    }
+
+    footer {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px
+    }
+
+    @keyframes fade {
+      from {
+        opacity: 0;
+        transform: translateY(6px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+  </style>
 </head>
+
 <body>
-  <h1>Hi MAJID 👋 — v3 rolling update!</h1>
+  <main class="wrap" role="main" aria-label="Demo page">
+    <section class="card">
+      <header>
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>Majid — Docker → CI/CD → Kubernetes</h1>
+            <div class="muted">Rolling update / rollback demo • v3</div>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="btn" href="https://github.com/ALBADWIMAJID/hello-docker" target="_blank" rel="noopener">
+            <span class="ic">🧩</span> Repo
+          </a>
+          <a class="btn ghost" href="https://hub.docker.com/r/majid36344/hello-nginx" target="_blank" rel="noopener">
+            <span class="ic">🐳</span> Docker Hub
+          </a>
+          <a class="btn min" href="#" onclick="navigator.clipboard.writeText(location.href);return false;">
+            <span class="ic">🔗</span> Copy URL
+          </a>
+        </div>
+      </header>
+
+      <div class="grid">
+        <div class="grid-col">
+          <p class="muted">This single-page demo is served by <strong>NGINX</strong> inside a Docker container. The
+            image is built and pushed by <strong>GitHub Actions</strong>, then deployed to <strong>Kubernetes
+              (Minikube)</strong> with a rolling update strategy.</p>
+
+          <!-- 🇷🇺 Ключевые статусы -->
+          <div class="badges" aria-label="Status badges">
+            <span class="badge"><span class="dot ok"></span> Docker image: <span
+                class="mono">majid36344/hello-nginx</span></span>
+            <span class="badge"><span class="dot ok"></span> K8s: <span class="mono">Deployment + NodePort</span></span>
+            <span class="badge"><span class="dot info"></span> CI/CD: <span class="mono">GitHub Actions</span></span>
+          </div>
+
+          <!-- 🇷🇺 Версия сборки -->
+          <div class="panel" id="ver">
+            <div><strong>Version:</strong> v3 • <strong>Image:</strong> <span
+                class="mono">majid36344/hello-nginx:3</span></div>
+            <div><strong>Build:</strong> GitHub Actions • <strong>Strategy:</strong> RollingUpdate</div>
+          </div>
+        </div>
+
+        <aside class="grid-col">
+          <!-- 🇷🇺 Подсказки для демонстрации -->
+          <div class="panel">
+            <div><strong>How to verify (local K8s):</strong></div>
+            <pre><code>$ minikube ip
+$ curl -I http://&lt;MINIKUBE_IP&gt;:30080  # → HTTP/1.1 200 OK</code></pre>
+            <div class="muted">Tip: scale &amp; rollout</div>
+            <pre><code>$ kubectl scale deploy hello-nginx --replicas=3
+$ kubectl set image deploy/hello-nginx web=majid36344/hello-nginx:3
+$ kubectl rollout status deploy/hello-nginx</code></pre>
+          </div>
+        </aside>
+      </div>
+
+      <footer>
+        <span>© 2025 Majid</span><span>•</span>
+        <span>Accessible • Responsive • No external assets</span>
+      </footer>
+    </section>
+  </main>
+
+  <!-- 🇷🇺 Небольшой JS: метка времени загрузки -->
+  <script>
+    (function () {
+      const el = document.getElementById('ver');
+      const dt = new Date().toLocaleString([], { hour12: false });
+      el.insertAdjacentHTML('beforeend', `<div><strong>Loaded:</strong> <span class="mono">${dt}</span></div>`);
+    })();
+  </script>
 </body>
+
 </html>
