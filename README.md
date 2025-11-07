@@ -244,4 +244,106 @@ make k8s-down
 
 
 
+---
+
+## Troubleshooting
+
+This section lists the most common issues with WSL + Minikube + Docker + GitHub Actions and how to fix them quickly.
+
+### 1) `kubectl`: error: no server found for cluster "minikube"
+**Cause:** Minikube is stopped or `KUBECONFIG` points to a wrong file.  
+**Fix:**
+```bash
+unset KUBECONFIG
+minikube start --driver=docker --memory=2048mb
+minikube kubectl -- get nodes
+
+2) NodePort service doesn’t respond (curl fails)
+Cause: Service not applied, Pods not Ready, or wrong port.
+Fix:
+```
+minikube kubectl -- get deploy,svc -o wide
+minikube kubectl -- get pods -o wide
+minikube kubectl -- rollout status deployment/hello-nginx --timeout=180s
+
+# Verify NodePort (should be 30080)
+minikube kubectl -- get svc hello-nginx -o jsonpath='{.spec.ports[0].nodePort}'; echo
+
+# Test via Minikube IP
+IP=$(minikube ip); echo "MINIKUBE_IP=$IP"
+curl -I "http://$IP:30080"
+
+
+```
+3) Ingress images stuck in ImagePullBackOff inside Minikube
+Cause: Minikube’s internal network can’t pull images from the registry.
+Fix (preload images on host, then load into Minikube):
+# Pull on host (WSL Docker)
+
+docker pull registry.k8s.io/ingress-nginx/controller:v1.13.2
+docker pull registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.6.2
+
+# Load into Minikube cache
+minikube image load registry.k8s.io/ingress-nginx/controller:v1.13.2
+minikube image load registry.k8s.io/ingress-nginx/kube-webhook-certgen:v1.6.2
+
+# Restart ingress pods
+kubectl delete pod -n ingress-nginx -l app.kubernetes.io/component=controller --ignore-not-found
+kubectl delete pod -n ingress-nginx -l job-name=ingress-nginx-admission-create --ignore-not-found
+kubectl delete pod -n ingress-nginx -l job-name=ingress-nginx-admission-patch --ignore-not-found
+
+# Wait for Ready
+kubectl wait -n ingress-nginx --for=condition=Ready pods -l app.kubernetes.io/component=controller --timeout=300s
+
+4) GitHub Actions blocks pushing workflow files via PAT
+Cause: Personal Access Token lacks the workflow scope.
+Fix (recommended): switch remote to SSH:
+git remote set-url origin git@github.com:ALBADWIMAJID/hello-docker.git
+git push
+
+Alternative: create a new PAT with the workflow scope and push again.
+5) Push rejected due to secrets (GH013 / Push Protection)
+Cause: A secret file (e.g., SSH private key) was committed accidentally.
+Fix:
+# Remove sensitive files from the repo
+git rm --cached -r .ssh .env *.pem *.key *.crt 2>/dev/null || true
+printf ".ssh/\n*.pem\n*.key\n*.crt\n*.env\n" >> .gitignore
+
+git commit -m "chore: remove secrets from repo"
+git push
+# If still blocked, follow GitHub’s unblock link or rewrite history with git filter-repo
+
+6) HPA shows no metrics (no scaling)
+Cause: metrics-server is disabled / not healthy, or Deployment has no CPU requests.
+Fix:
+minikube addons enable metrics-server
+kubectl get apiservices | grep metrics
+kubectl get hpa
+# Ensure Deployment includes CPU requests (e.g., requests.cpu: 100m)
+
+7) WSL proxy warning:
+Message: wsl: A localhost proxy configuration was detected but not mirrored into WSL
+Fix (quick): stop the local proxy or bypass proxy within WSL:
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy
+
+8) docker push → denied: requested access to the resource is denied
+Cause: Not logged in to Docker Hub or wrong tag.
+Fix:
+docker login -u majid36344
+docker push majid36344/hello-nginx:latest
+
+9) Minikube stopped after reboot
+Fix:
+minikube status
+minikube start --driver=docker --memory=2048mb
+minikube kubectl -- get nodes
+
+10) Need a temporary public URL for the professor
+Cloudflare Tunnel:
+IP=$(minikube ip)
+cloudflared tunnel --url "http://$IP:30080"
+# Use the printed https://<random>.trycloudflare.com link
+
+
+
 
